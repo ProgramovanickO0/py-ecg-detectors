@@ -5,10 +5,17 @@ http://researchdata.gla.ac.uk/716/
 
 Copyright (C) 2019-2022 Luis Howell & Bernd Porr
 GPL GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+
+Speed-up modifications by Jiri Millek (2022-03-28),
+    orcid.org/0000-0002-5834-7184
+    Czech Technical University in Prague,
+    Faculty of Biomedical engeineering,
+    dpt. Information and Communication Technology in Medicine
 """
 
 import numpy as np
 import pywt
+import bottleneck as bt
 try:
     import pathlib
 except ImportError:
@@ -97,7 +104,7 @@ class Detectors:
                         s_pks.append(ma[peak])
                         if len(n_pks)>8:
                             s_pks.pop(0)
-                        s_pks_ave = np.mean(s_pks)
+                        s_pks_ave = bt.nanmean(s_pks)
 
                         if RR_ave != 0.0:
                             if QRS[-1]-QRS[-2] > 1.5*RR_ave:
@@ -112,13 +119,13 @@ class Detectors:
                             RR.append(QRS[-1]-QRS[-2])
                             if len(RR)>8:
                                 RR.pop(0)
-                            RR_ave = int(np.mean(RR))
+                            RR_ave = int(bt.nanmean(RR))
 
                     else:
                         n_pks.append(ma[peak])
                         if len(n_pks)>8:
                             n_pks.pop(0)
-                        n_pks_ave = np.mean(n_pks)
+                        n_pks_ave = bt.nanmean(n_pks)
 
                     th = n_pks_ave + 0.45*(s_pks_ave-n_pks_ave)
 
@@ -194,13 +201,13 @@ class Detectors:
 
             # M
             if i < 5*self.fs:
-                M = 0.6*np.max(MA3[:i+1])
+                M = 0.6*bt.nanmax(MA3[:i+1])
                 MM.append(M)
                 if len(MM)>5:
                     MM.pop(0)
 
             elif QRS and i < QRS[-1]+ms200:
-                newM5 = 0.6*np.max(MA3[QRS[-1]:i])
+                newM5 = 0.6*bt.nanmax(MA3[QRS[-1]:i])
                 if newM5>1.5*MM[-1]:
                     newM5 = 1.1*MM[-1]
 
@@ -210,20 +217,20 @@ class Detectors:
                 MM.append(newM5)
                 if len(MM)>5:
                     MM.pop(0)    
-                M = np.mean(MM)    
+                M = bt.nanmean(MM)    
             
             elif QRS and i > QRS[-1]+ms200 and i < QRS[-1]+ms1200:
 
-                M = np.mean(MM)*M_slope[i-(QRS[-1]+ms200)]
+                M = bt.nanmean(MM)*M_slope[i-(QRS[-1]+ms200)]
 
             elif QRS and i > QRS[-1]+ms1200:
-                M = 0.6*np.mean(MM)
+                M = 0.6*bt.nanmean(MM)
 
             # F
             if i > ms350:
                 F_section = MA3[i-ms350:i]
-                max_latest = np.max(F_section[-ms50:])
-                max_earliest = np.max(F_section[:ms50])
+                max_latest = bt.nanmax(F_section[-ms50:])
+                max_earliest = bt.nanmax(F_section[:ms50])
                 F = F + ((max_latest-max_earliest)/150.0)
 
             # R
@@ -233,7 +240,7 @@ class Detectors:
 
             elif QRS and i > QRS[-1]+int((2.0/3.0*Rm)) and i < QRS[-1]+Rm:
 
-                dec = (M-np.mean(MM))/1.4
+                dec = (M-bt.nanmean(MM))/1.4
                 R = 0 + dec
 
 
@@ -252,7 +259,7 @@ class Detectors:
                     RR.append(QRS[-1]-QRS[-2])
                     if len(RR)>5:
                         RR.pop(0)
-                    Rm = int(np.mean(RR))
+                    Rm = int(bt.nanmean(RR))
 
         QRS.pop(0)
         
@@ -309,14 +316,14 @@ class Detectors:
 
             # M
             if i < 5*self.fs:
-                M = 0.6*np.max(low_pass[:i+1])
+                M = 0.6*bt.nanmax(low_pass[:i+1])
                 MM.append(M)
                 if len(MM)>5:
                     MM.pop(0)
 
             elif QRS and i < QRS[-1]+ms200:
 
-                newM5 = 0.6*np.max(low_pass[QRS[-1]:i])
+                newM5 = 0.6*bt.nanmax(low_pass[QRS[-1]:i])
 
                 if newM5>1.5*MM[-1]:
                     newM5 = 1.1*MM[-1]
@@ -325,14 +332,14 @@ class Detectors:
                 MM.append(newM5)
                 if len(MM)>5:
                     MM.pop(0)    
-                M = np.mean(MM)    
+                M = bt.nanmean(MM)    
             
             elif QRS and i > QRS[-1]+ms200 and i < QRS[-1]+ms1200:
 
-                M = np.mean(MM)*M_slope[i-(QRS[-1]+ms200)]
+                M = bt.nanmean(MM)*M_slope[i-(QRS[-1]+ms200)]
 
             elif QRS and i > QRS[-1]+ms1200:
-                M = 0.6*np.mean(MM)
+                M = 0.6*bt.nanmean(MM)
 
             M_list.append(M)
             neg_m.append(-M)
@@ -370,7 +377,7 @@ class Detectors:
             if counter>neg_threshold:
                 unfiltered_section = unfiltered_ecg[thi_list[-1]-int(0.01*self.fs):i]
                 r_peaks.append(self.engzee_fake_delay+
-                               np.argmax(unfiltered_section)+thi_list[-1]-int(0.01*self.fs))
+                               bt.nanargmax(unfiltered_section)+thi_list[-1]-int(0.01*self.fs))
                 counter = 0
                 thi = False
                 thf = False
@@ -511,7 +518,7 @@ class Detectors:
         mwa_beat = MWA_from_name(MWA_name)(abs(filtered_ecg), window2)
 
         blocks = np.zeros(len(unfiltered_ecg))
-        block_height = np.max(filtered_ecg)
+        block_height = bt.nanmax(filtered_ecg)
 
         for i in range(len(mwa_qrs)):
             if mwa_qrs[i] > mwa_beat[i]:
@@ -529,7 +536,7 @@ class Detectors:
                 end = i-1
 
                 if end-start>int(0.08*self.fs):
-                    detection = np.argmax(filtered_ecg[start:end+1])+start
+                    detection = bt.nanargmax(filtered_ecg[start:end+1])+start
                     if QRS:
                         if detection-QRS[-1]>int(0.3*self.fs):
                             QRS.append(detection)
@@ -612,7 +619,7 @@ def MWA_original(input_array, window_size):
         else:
             section = input_array[i-window_size:i]        
         
-        mwa[i-1] = np.mean(section)
+        mwa[i-1] = bt.nanmean(section)
 
     return mwa
 
@@ -631,7 +638,7 @@ def MWA_convolve(input_array, window_size):
 
 def normalise(input_array):
 
-    output_array = (input_array-np.min(input_array))/(np.max(input_array)-np.min(input_array))
+    output_array = (input_array-bt.nanmin(input_array))/(bt.nanmax(input_array)-bt.nanmin(input_array))
 
     return output_array
 
@@ -691,7 +698,7 @@ def panPeakDetect(detection, fs):
 
                 if len(signal_peaks)>8:
                     RR = np.diff(signal_peaks[-9:])
-                    RR_ave = int(np.mean(RR))
+                    RR_ave = int(bt.nanmean(RR))
                     RR_missed = int(1.66*RR_ave)
 
                 index = index+1      
