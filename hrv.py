@@ -4,6 +4,7 @@ both the timedomain and frequency domain.
 
 Copyright (C) 2019 Luis Howell & Bernd Porr
 GPL GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+Modified 2024 Millek Jiri - some parts are working faster by replaced Numpy to Bottleneck  
 """
 
 
@@ -12,6 +13,7 @@ import random
 import subprocess
 from scipy.interpolate import interp1d
 from gatspy.periodic import LombScargleFast
+import bottleneck as bt
 
 class HRV:
     """
@@ -92,10 +94,10 @@ class HRV:
         """
 
         rr_intervals = self._intervals(rr_samples) 
-        rr_std = np.std(rr_intervals)
+        rr_std = bt.nanstd(rr_intervals)
 
         if normalise:
-            rr_mean_interval = np.mean(rr_intervals)
+            rr_mean_interval = bt.nanmean(rr_intervals)
             rr_std = rr_std/rr_mean_interval
 
         return rr_std
@@ -117,7 +119,7 @@ class HRV:
         average_period_samples = int(self.fs*average_period*60)
         average_rr_intervals = []
 
-        sections = int((np.max(rr_samples)/average_period_samples)+0.5)
+        sections = int((bt.nanmax(rr_samples)/average_period_samples)+0.5)
 
         if sections<1:
                 sections = 1
@@ -129,13 +131,13 @@ class HRV:
                 idx = idx[0]
                 section_rr = rr_samples[idx[0]:idx[-1]+1]
 
-                avg_rr_int = np.mean(self._intervals(section_rr))
+                avg_rr_int = bt.nanmean(self._intervals(section_rr))
                 average_rr_intervals.append(avg_rr_int)
 
-        rr_std = np.std(average_rr_intervals)
+        rr_std = bt.nanstd(average_rr_intervals)
 
         if normalise:
-                rr_mean_interval = np.mean(average_rr_intervals)
+                rr_mean_interval = bt.nanmean(average_rr_intervals)
                 rr_std = rr_std/rr_mean_interval
 
         return rr_std
@@ -155,10 +157,10 @@ class HRV:
         succ_diffs = self._succ_diffs(rr_samples)
         succ_diffs = succ_diffs*succ_diffs
 
-        rms = np.sqrt(np.mean(succ_diffs))
+        rms = np.sqrt(bt.nanmean(succ_diffs))
 
         if normalise:
-            rms = rms / np.mean(self._intervals(rr_samples))
+            rms = rms / bt.nanmean(self._intervals(rr_samples))
 
         return rms
 
@@ -174,7 +176,7 @@ class HRV:
 
         succ_diffs = self._succ_diffs(rr_samples)
 
-        return np.std(succ_diffs)        
+        return bt.nanstd(succ_diffs)        
 
     
     def NN50(self, rr_samples):
