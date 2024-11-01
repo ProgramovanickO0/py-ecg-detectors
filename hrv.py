@@ -4,7 +4,12 @@ both the timedomain and frequency domain.
 
 Copyright (C) 2019 Luis Howell & Bernd Porr
 GPL GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
-Modified 2024 Millek Jiri - some parts are working faster by replaced Numpy to Bottleneck  
+
+Speed-up modifications by Jiri Millek (2024-11-01),
+    orcid.org/0000-0002-5834-7184
+    Czech Technical University in Prague,
+    Faculty of Biomedical engeineering,
+    dpt. Information and Communication Technology in Medicine
 """
 
 
